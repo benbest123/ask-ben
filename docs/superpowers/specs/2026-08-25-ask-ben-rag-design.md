@@ -112,11 +112,20 @@ turn:
 | System (cached) | Role and scope, grounding rules, refusal policy, citation format, tone | Frozen per version |
 | User turn | Retrieved chunks, then the question | Every request |
 
-This split is load-bearing, not cosmetic. Retrieved chunks vary per query, so placing them
-in `system` would invalidate the prompt cache on every request. A frozen system prefix
-caches at roughly a tenth of input cost from the second question onward, and
-`usage.cache_read_input_tokens` proves it. Note the ~1024-token minimum cacheable prefix —
-the system prompt must clear it to cache at all.
+This split is load-bearing, not cosmetic — but its benefit is **uneven across arms**, and
+saying so is more useful than over-claiming.
+
+Prompt caching has a ~1024-token minimum cacheable prefix. The instruction-only system
+prompt used by the retrieval arms is a few hundred tokens, so **it will not cache at all**.
+The full-context control arm is different: there the entire corpus (10–15k tokens) sits in
+the frozen system prompt and caches cleanly, at roughly a tenth of input cost from the
+second question onward.
+
+That asymmetry is a finding, not a footnote. It narrows the cost gap between retrieval and
+prompt-stuffing considerably, and an honest comparison has to account for it —
+prompt-stuffing looks expensive until you notice it caches and retrieval does not.
+`usage.cache_read_input_tokens` is recorded on every run so the effect is measured rather
+than assumed.
 
 Each rule in the prompt exists because a failure mode sits behind it:
 
@@ -150,8 +159,13 @@ One interface, `Retriever.search(query, k) -> list[Hit]`, with three implementat
 That separation is what allows the evaluation to swap components independently.
 
 **Embeddings vendor.** Anthropic does not sell embeddings, so this is a separate decision.
-Voyage (`voyage-3.5-lite`, or the current lite model — the exact id to be confirmed against
-live documentation at implementation time, not from memory) on its free tier.
+Voyage **`voyage-4-lite`** — 1024 dimensions, 32K context, the cost-and-latency-optimised
+tier. Confirmed against live documentation on 2026-08-25; an earlier draft of this spec said
+`voyage-3.5-lite`, which no longer exists.
+
+Query embeddings must be requested with `input_type="query"` and corpus embeddings with
+`input_type="document"`. Voyage embeds the two asymmetrically, and getting this wrong
+degrades retrieval quietly rather than loudly.
 
 The alternative, local `sentence-transformers`, needs no API key but pulls `torch` into the
 deployment. Corpus embeddings are precomputed at build time either way, so the only thing
