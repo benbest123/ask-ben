@@ -289,38 +289,67 @@ ask-ben/
 
 ## Division of labour
 
-The arrangement is split by what an interviewer will interrogate.
+Speed is the binding constraint, so **Claude implements by default.** Day 1 is the
+checkpoint: if the code arrives faster than Ben can absorb it, the split moves back toward
+him writing the parts he most needs to defend.
 
-**Ben writes:** `retrieve.py`, the three prompt versions, `metrics.py`, `judge.py`, the
-answerable golden questions, all 20 human labels, the analysis, and `docs/DECISIONS.md`.
+**Claude writes:** everything not listed below — repo scaffold, config, CI, Vercel wiring,
+`chunks.py`, `ingest.py`, `retrieve.py`, `prompt.py`, `answer.py`, the evaluation harness
+including `metrics.py` and `judge.py`, tests, draft corpus chunks, draft golden questions,
+and the `AskWindow` PR in `personal-site`.
 
-**Claude writes:** repo scaffold, `pyproject.toml`, ruff/mypy/pytest config, CI workflows,
-Vercel config, `chunks.py`, `ingest.py`, the FastAPI skeleton and `api/ask.py`, test
-scaffolding with a mocked client, draft corpus chunks (Ben edits and approves), the
-out-of-scope and adversarial golden questions, and the `AskWindow` PR in `personal-site`.
+**Ben keeps, and these do not move:**
 
-The corpus is content about Ben rather than engineering he must defend — the defensible
-decision there is the chunking strategy, which is his either way. Drafting it saves hours
-without weakening the exhibit.
+- **The 20 human labels.** Not delegable by definition — the whole point of `--check-judge`
+  is agreement between the model and *a human*. A Claude-labelled set measures nothing.
+- **`docs/DECISIONS.md`.** This is the file he will effectively be reading aloud in the
+  interview. Writing it himself is what converts the project into something he can speak to.
+- **Corpus review and approval.** It is content about him, published under his name.
+- **The analysis.** Reading the eval output and saying what it means is the deliverable.
+
+### The compensating control
+
+Writing code Ben must later defend is exactly the failure recorded on `thelook-analytics`:
+a green project he could not speak to, because it arrived in one piece. Shipping fast
+without repeating that requires one mechanism, not good intentions:
+
+**Every PR carries a short "what to be able to say about this" note** — the decision taken,
+the alternative rejected, and the one question an interviewer would ask about it. These
+accumulate into the raw material for `DECISIONS.md`, which Ben then writes in his own words.
+
+If day 1 shows that the notes are not landing — that the code is outrunning his ability to
+explain it — the correct response is to slow down and hand `retrieve.py` and the prompt
+versions back to him, not to keep shipping.
 
 Every commit is authored solely by `benbest123` with no co-author trailer. Work goes on
 feature branches with PRs, never straight to `main`.
 
 ## Schedule — two days
 
-**Day 1**
+**Day 1 — Claude implements**
 
-- Claude, up front: repo scaffold, config, CI, Vercel config, `chunks.py`, `ingest.py`,
-  FastAPI skeleton, test scaffolding, draft corpus
-- Ben: edit and approve the corpus (~1h), write `retrieve.py` (~2h), write prompts v1 to v3 (~1.5h)
+- Repo scaffold, `pyproject.toml`, ruff/mypy/pytest, CI workflows
+- `chunks.py`, `ingest.py`, the index artifact and its freshness check
+- `retrieve.py` — all three retrievers
+- Draft corpus (~30 chunks) from `cv.ts`, `projects.ts` and the theLook notes
+- Prompts v1 to v3
+- `prompt.py`, `answer.py`, the relevance gate, FastAPI skeleton and `api/ask.py`
+
+- Ben, roughly 1.5h: review and approve the corpus, read the PR notes, push back on
+  anything he could not currently defend
+
+**Day 1 checkpoint.** Is Ben able to explain what shipped? If yes, continue at speed. If
+not, `retrieve.py` and the prompt versions come back to him on day 2 and the frontend slips.
 
 **Day 2**
 
-- Ben: `metrics.py` and `judge.py` (~2.5h), answerable golden questions (~1h), run the
-  sweeps (~30m), 20 human labels (~1h), README results and `DECISIONS.md` (~1.5h)
-- Claude: `AskWindow` PR in `personal-site`, deployment wiring, README skeleton
+- Claude: evaluation harness, `metrics.py`, `judge.py`, draft golden set, run the prompt /
+  retriever / model sweeps, `AskWindow` PR in `personal-site`, deployment, README skeleton
+- Ben, roughly 3h: edit the golden set, label 20 outputs by hand, read the results, write
+  the analysis and `docs/DECISIONS.md`
 
-Roughly nine hours of Ben's time across two days.
+Roughly 4.5 hours of Ben's time, down from nine — with the day 1 checkpoint as the safety
+valve if that turns out to have bought speed at the cost of the thing the project is for.
 
 ## Risks
 
