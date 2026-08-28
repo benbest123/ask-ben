@@ -33,6 +33,10 @@ ANSWER_MODEL = "claude-haiku-4-5-20251001"
 # grading a cheap generator is a closed loop with no external check on it.
 JUDGE_MODEL = "claude-opus-5"
 
+# The corpus is written in the third person and never contains the word "you".
+# `normalise.py` rewrites second-person pronouns to this before retrieval.
+SUBJECT_NAME = "Ben"
+
 DEFAULT_PROMPT_VERSION = "v2"
 DEFAULT_RETRIEVER = "bm25"
 DEFAULT_K = 4
