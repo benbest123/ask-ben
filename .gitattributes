@@ -1,0 +1,5 @@
+# CI runs on Linux; the working tree is Windows. Normalise to LF in the repo so
+# a checkout on either platform lints and formats identically.
+* text=auto eol=lf
+*.png binary
+*.npy binary
