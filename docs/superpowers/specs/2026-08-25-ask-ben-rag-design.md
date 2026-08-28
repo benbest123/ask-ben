@@ -327,6 +327,55 @@ ask-ben/
 └── README.md
 ```
 
+## Cost and abuse
+
+Measured 2026-08-28 with the `count_tokens` endpoint against the real corpus and prompt v2,
+not estimated. Rates are Claude Haiku 4.5: $1 / $5 per MTok, cache reads $0.10.
+
+| Arm | Input tokens | Cold | Warm cache | Per 1,000 questions |
+| --- | --- | --- | --- | --- |
+| Retrieval, k=4 | 1,414 | $0.00216 | — (does not cache) | **$2.16** |
+| Full context, 29 chunks | 7,866 | $0.00862 | $0.00154 | **$1.54** |
+
+**The full-context arm is cheaper per question than retrieval once its cache is warm.** That is
+the caching asymmetry from "Prompt design" showing up as money: retrieval sends a fifth of the
+tokens but pays full price for all of them, while prompt-stuffing sends the whole corpus at a
+tenth of the rate. This is a headline result for the README, and it is the opposite of what the
+project assumed going in.
+
+### Where the abuse exposure actually is
+
+Embedding is not the exposure, by three orders of magnitude. Voyage `voyage-4-lite` is $0.02 per
+MTok and a question embeds to roughly 20 tokens, so 100,000 hostile questions cost about **$0.04**
+in embeddings and about **$216** in generation. Any cost control aimed at the embedding vendor is
+aimed at the wrong number.
+
+An earlier version of this project was protected only by an accident: the Voyage free tier's 3
+requests-per-minute limit throttled the whole pipeline. That is not a control. It disappears the
+moment a payment method is added, and it never applied to the BM25 arm at all, which makes no
+network call. Relying on it would mean the cheapest, most likely-to-ship configuration is the
+unprotected one.
+
+### The controls, in order of what actually holds
+
+1. **A spend limit in the Anthropic console.** Hard, non-bypassable, fails closed. Worst case the
+   widget is unavailable for the rest of the month, which for a portfolio piece is an acceptable
+   failure mode and a much better one than an unbounded bill.
+2. **`MAX_ANSWER_TOKENS = 300`.** Output is billed at five times input, so the answer cap is the
+   cheapest lever available. At the previous 1024 the worst case was ~$0.0065 a question against
+   a ~$0.0022 typical -- three times the cost for output the prompt does not want, since it asks
+   for two to four sentences.
+3. **Vercel WAF rate limiting, per IP, configured in the dashboard.** Available on the Hobby
+   plan. This is the real request-rate control and it needs no application code.
+4. **The relevance gate.** Off-topic questions are refused before any Anthropic call, so
+   scattergun abuse costs nothing. It does not stop a determined abuser asking on-topic
+   questions, and is not claimed to.
+5. **`MAX_QUESTION_CHARS = 500`.** Caps the input side.
+
+An in-process rate limiter is deliberately **not** on this list. Serverless instances do not share
+memory, so a per-instance counter is theatre. Shared state would mean Upstash Redis, which is a
+real option and is the upgrade path if the WAF rule proves insufficient.
+
 ## Measured against the reference project
 
 `github.com/njranum/ama-rag` is a working system that does the same job, so it is the
@@ -451,5 +500,7 @@ valve if that turns out to have bought speed at the cost of the thing the projec
    model does the half whose output is treated as evidence.
 9. Model tier confirmed on measured quality-per-penny, not by reputation.
 10. No streaming — a deliberate omission, measured against a reference project that has it.
-11. Questions are normalised to the third person before retrieval — a borrowed fix, with
+11. Abuse cost is bounded by a console spend limit and an answer-token cap, not by a
+    vendor's free-tier rate limit, which is an accident rather than a control.
+12. Questions are normalised to the third person before retrieval — a borrowed fix, with
     attribution, for a failure the reference project measured.
