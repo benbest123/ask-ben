@@ -6,9 +6,15 @@ from typing import Any
 from ask_ben.eval.judge import Verdict, judge_agreement, judge_answer, load_human_labels
 
 
+class StubUsage:
+    input_tokens = 1600
+    output_tokens = 90
+
+
 class StubParsed:
     def __init__(self, verdict: Verdict) -> None:
         self.parsed_output = verdict
+        self.usage = StubUsage()
 
 
 class StubMessages:
@@ -30,14 +36,14 @@ def test_judge_returns_a_validated_verdict() -> None:
     expected = Verdict(
         declined=False, grounded=True, quality=4, reasoning="Every claim is supported."
     )
-    verdict = judge_answer(
+    judgement = judge_answer(
         StubClient(expected),
         question="What did Ben do at Visa?",
         context="[source: role-visa] He was an Associate Data Engineer.",
         answer="He was an Associate Data Engineer [source: role-visa].",
         reference="Associate Data Engineer at Visa.",
     )
-    assert verdict == expected
+    assert judgement.verdict == expected
 
 
 def test_judge_uses_structured_output_so_the_verdict_cannot_be_prose() -> None:
@@ -120,3 +126,21 @@ def test_load_human_labels_skips_unanswered_entries(tmp_path: Path) -> None:
     path = tmp_path / "labels.yaml"
     path.write_text("factual-degree: true\nfactual-aws: false\nreasoning-csp:\n", encoding="utf-8")
     assert load_human_labels(path) == {"factual-degree": True, "factual-aws": False}
+
+
+def test_the_judgement_reports_what_it_spent() -> None:
+    """Judging costs roughly five times the answers it grades.
+
+    On the first sweep the judge cost $0.29 a run against $0.06 of answers, and
+    the reported figure omitted it entirely -- understating the true cost of a
+    run by about 85%.
+    """
+    judgement = judge_answer(
+        StubClient(Verdict(declined=False, grounded=True, quality=5, reasoning="ok")),
+        question="q",
+        context="c",
+        answer="a",
+        reference="r",
+    )
+    assert judgement.input_tokens == 1600
+    assert judgement.output_tokens == 90
