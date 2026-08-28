@@ -32,7 +32,12 @@ about a software engineer named Ben Best.
 You are given the retrieved context the system was working from, the answer it \
 produced, and a reference answer written by hand.
 
-Grade two things:
+Grade three things:
+
+0. declined -- true if the answer declines: says it has no information, \
+redirects without answering, or refuses. False if it makes a substantive \
+attempt at the question, even a poor or uncited one. Judge the substance, NOT \
+whether it cited sources -- an uncited but genuine answer has not declined.
 
 1. grounded -- true only if every factual claim in the answer is supported by the \
 supplied context. An answer that is correct about the real world but not supported \
@@ -54,6 +59,13 @@ it is the one an unvalidated judge is most likely to be generous about."""
 
 
 class Verdict(BaseModel):
+    declined: bool = Field(
+        description=(
+            "True if the answer declines to answer the question -- says it has no "
+            "information, redirects without answering, or refuses. False if it makes a "
+            "substantive attempt, even a poor or uncited one."
+        )
+    )
     grounded: bool = Field(description="Is every claim supported by the supplied context?")
     quality: int = Field(ge=1, le=5, description="Answer quality, 1 to 5")
     reasoning: str = Field(description="One or two sentences justifying the grades")
