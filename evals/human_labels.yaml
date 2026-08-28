@@ -29,8 +29,20 @@
 # is no incentive to skip the hard ones.
 # ---------------------------------------------------------------------------
 #
-# Run `python -m ask_ben.eval.run --retriever bm25 --prompt v2` first, read the
-# answers it produced, then uncomment and set each line below.
+# WHICH RUN THESE LABELS DESCRIBE
+#
+# Labels are about the ANSWERS a specific run produced, not about the questions.
+# Change the corpus, the prompt or the retriever and the answers change, so the
+# labels go stale. Record which run you read, and re-check them after any corpus
+# edit large enough to change what the answers say.
+#
+#   labelled_against: evals/results/embedding-v2-claude-haiku-4-5-20251001-k4.json
+#   labelled_on: 2026-08-__
+#
+# That file has every row with the question, the exact passages the model was
+# shown, and the answer it gave. Read the `context` field before deciding -- the
+# question is whether the answer is supported by THOSE passages, not by what you
+# know to be true.
 
 # --- factual ---
 # factual-where-worked:
