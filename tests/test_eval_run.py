@@ -34,7 +34,9 @@ QUESTIONS = [
 
 
 class StubRetriever:
-    name = "bm25"
+    # "embedding" rather than "bm25": BM25's gate is disabled in config, so a
+    # stub named bm25 would never gate and the refusal path would go untested.
+    name = "embedding"
 
     def search(self, query: str, k: int) -> list[Hit]:
         return [Hit(chunk=CHUNK, score=9.0 if "Visa" in query else 0.0)]
@@ -193,7 +195,7 @@ def test_fabricated_urls_are_scored_per_row() -> None:
 
 def test_the_report_is_markdown_naming_the_configuration() -> None:
     report = render_report(run())
-    assert "bm25" in report
+    assert "embedding" in report
     assert "v2" in report
     assert "claude-haiku-4-5-20251001" in report
     assert "claude-opus-5" in report

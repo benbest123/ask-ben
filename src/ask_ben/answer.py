@@ -105,7 +105,11 @@ def answer_question(
         "retrieved_ids": [h.chunk.id for h in hits],
     }
 
-    if top_score < threshold:
+    # No hits at all is always a refusal, whatever the threshold says. An arm
+    # with its gate disabled (BM25, whose scores cannot separate on this corpus)
+    # has threshold -inf, and -inf < -inf is False -- so without this an empty
+    # retrieval would be sent to the model with no context whatsoever.
+    if not hits or top_score < threshold:
         return Answer(
             text=REFUSAL_TEXT,
             sources=[],

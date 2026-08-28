@@ -99,7 +99,7 @@ def test_low_scoring_retrieval_is_refused_without_calling_the_api() -> None:
     client = StubClient()
     result = answer_question(
         "What is the capital of Peru?",
-        retriever=StubRetriever("bm25", [Hit(chunk=CHUNKS[0], score=0.1)]),
+        retriever=StubRetriever("embedding", [Hit(chunk=CHUNKS[0], score=0.01)]),
         client=client,
     )
     assert result.refused is True
@@ -111,7 +111,7 @@ def test_a_gated_question_reports_zero_tokens() -> None:
     """Gated questions are free, and the eval's cost column depends on saying so."""
     result = answer_question(
         "Off topic",
-        retriever=StubRetriever("bm25", [Hit(chunk=CHUNKS[0], score=0.1)]),
+        retriever=StubRetriever("embedding", [Hit(chunk=CHUNKS[0], score=0.01)]),
         client=StubClient(),
     )
     assert result.meta["gated"] is True
