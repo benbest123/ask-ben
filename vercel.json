@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/ask.py": {
+      "includeFiles": "{src,prompts,index}/**"
+    }
+  },
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/ask" }]
+}

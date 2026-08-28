@@ -1,0 +1,13 @@
+# Vercel's Python runtime installs from this file, not from pyproject.toml.
+# Kept in sync with the [project.dependencies] block there by a CI check.
+#
+# Note the absence of torch. The 250MB unzipped bundle cap is exactly why
+# embeddings are a Voyage HTTP call rather than a local sentence-transformers
+# model -- one deployment constraint, consistently explaining two decisions.
+anthropic>=1.0
+voyageai>=0.3
+rank-bm25>=0.2.2
+numpy>=2.0
+fastapi>=0.115
+pydantic>=2.9
+pyyaml>=6.0
