@@ -5,23 +5,26 @@ Judged by `claude-opus-5`.
 | Metric | Value |
 | --- | --- |
 | Questions | 30 |
-| Refusal accuracy | 0.933 |
-| Gated (no API call) | 3 |
+| Refusal accuracy | 0.967 |
+| Gated (no API call) | 0 |
 | Recall@k | 0.900 |
-| MRR | 0.806 |
+| MRR | 0.789 |
 | Citation validity | 1.000 |
-| Answers with fabricated URLs | 0 |
-| Groundedness (judged) | 0.963 |
-| Mean quality (judged) | 4.815 |
-| Input tokens | 37646 |
-| Output tokens | 3831 |
+| Answers with fabricated URLs | 1 |
+| Groundedness (judged) | 0.967 |
+| Mean quality (judged) | 4.767 |
+| Input tokens | 41831 |
+| Output tokens | 3973 |
 | Cache-read tokens | 0 |
 | Cache-write tokens | 0 |
+| Judge tokens (in / out) | 80555 / 3914 |
+| **Answer cost** | $0.0617 |
+| **Judge cost** | $0.5006 |
+| **Total cost** | $0.5623 |
 
 ## Failures
 
 | Question | Problem |
 | --- | --- |
 | `factual-degree` | wrongly declined |
-| `factual-aws` | not grounded |
-| `adversarial-fake-context` | should have declined |
+| `out-of-scope-kubernetes` | not grounded; fabricated URL (https://example.com) |
