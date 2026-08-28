@@ -1,0 +1,341 @@
+[
+  {
+    "body": "The evaluation is the point of this project rather than an accessory to it.\n\nIt runs against a golden set of roughly thirty questions in four deliberate categories:\nanswerable factual questions, answerable questions that require reasoning across chunks,\nout-of-scope questions that should be refused, and adversarial prompt-injection attempts.\n\nThe metrics are split into two tiers on the basis of cost. Deterministic ones are free and run on\nevery pull request: whether cited chunk ids are valid, whether out-of-scope questions were\nactually refused, and recall at k and mean reciprocal rank measured against a must-cite field on\neach question. That last pair is what separates a retrieval failure from a generation failure,\nwhich otherwise look identical from the outside. Judged metrics cost money, so they run on manual\ndispatch only.\n\nThe part Ben would point to first is that the language model judge is itself validated. Using a\nmodel to grade a model is circular if you stop there, so the judge's verdicts are compared\nagainst roughly twenty questions Ben labelled by hand, and the agreement rate is reported\nalongside every score the judge produces. If the judge and the human disagree badly, the judge's\nnumbers do not get believed.",
+    "id": "askben-eval-approach",
+    "tags": [
+      "ask-ben",
+      "evaluation",
+      "llm-judge",
+      "metrics",
+      "decision"
+    ],
+    "title": "How this widget is evaluated"
+  },
+  {
+    "body": "There is no chunking code in this project. One markdown file is one chunk, and the corpus is\nauthored at chunk size, with each file deliberately written at roughly 150 to 320 words on a\nsingle topic.\n\nThis declines the chunking problem rather than solving it. Splitting long documents well is\ngenuinely hard: fixed-size windows cut sentences in half, paragraph splits produce wildly uneven\nchunks, and the overlap you add to compensate inflates the index and returns near-duplicate\nresults. None of that has to be solved if the source material never needs splitting.\n\nBen is direct about the limitation, because it is the obvious follow-up question. This does not\ngeneralise. It works because the corpus is small, hand-written, and written specifically for this\npurpose. The moment you point the system at documents you did not author, a PDF, a wiki export,\na set of transcripts, atomic authoring stops being available and a real chunking strategy becomes\nunavoidable.\n\nA test in the repository enforces the discipline by failing if any chunk exceeds 320 words, on\nthe reasoning that a 600-word chunk is a chunking problem wearing a disguise.",
+    "id": "askben-no-chunking",
+    "tags": [
+      "ask-ben",
+      "rag",
+      "corpus",
+      "decision",
+      "tradeoffs"
+    ],
+    "title": "Why this widget has no chunking logic"
+  },
+  {
+    "body": "This question answering service uses no vector database. There is no Pinecone, no Chroma, no\npgvector. Retrieval is either a BM25 score over the chunks or a numpy dot product against a\nmatrix of embeddings that is committed to the repository.\n\nThe corpus is around thirty chunks. Embedded at 1024 dimensions that is a matrix of roughly\nthirty by one thousand and twenty-four floats, which is about 120 kilobytes and fits comfortably\nin memory. A brute-force comparison against every chunk is a single matrix multiplication taking\nwell under a millisecond. Approximate nearest neighbour search exists to avoid comparing against\neverything, and at this size comparing against everything is already the fast path.\n\nSo a vector database would be a network hop, an API key, a second thing that can be down, and an\nindex that can silently drift out of sync with the corpus, in exchange for solving a problem that\ndoes not exist yet.\n\nBen is clear about where the answer changes. This holds while the corpus fits in memory and\nrebuilding the index is cheap. Somewhere in the low tens of thousands of chunks, or as soon as\nthe corpus updates continuously rather than by a commit, the calculation inverts.",
+    "id": "askben-no-vector-db",
+    "tags": [
+      "ask-ben",
+      "rag",
+      "architecture",
+      "decision",
+      "yagni"
+    ],
+    "title": "Why this widget has no vector database"
+  },
+  {
+    "body": "Ben is available for work and is based in London. He holds a Youth Mobility Visa valid until June\n2029, so he can work in the UK without sponsorship for that period.\n\nThe best routes to him are his LinkedIn profile at linkedin.com/in/benjamin-s-best and his GitHub\nat github.com/benbest123. His email address is on the Contact window of his site at benbest.uk.\n\nThat last detail is deliberate rather than evasive, and the reasoning is the kind of thing this\nwidget exists to demonstrate. This is a public endpoint that answers questions on request, which\nmakes it a convenient thing to scrape. Contact details that a bot will emit to anyone who asks\nare contact details that end up in bulk mailing lists, so the corpus behind this widget contains\nno email address and no number, and a test in the repository fails the build if one is ever added.\nA human visitor is one click away from the same information.\n\nAnything about notice periods, availability dates or compensation is better discussed directly\nthan answered by a language model working from notes.",
+    "id": "availability-and-contact",
+    "tags": [
+      "meta",
+      "contact",
+      "availability"
+    ],
+    "title": "How to get in touch with Ben"
+  },
+  {
+    "body": "Ben holds the AWS Certified AI Practitioner certification, AIF-C01, issued by Amazon Web Services\nin 2025.\n\nIt is the foundational-tier AI and machine learning certification in the AWS track, covering\ngenerative AI concepts, foundation models, prompt engineering, responsible AI practice, and the\nAWS services that sit around them such as Bedrock and SageMaker.\n\nHe is straightforward about what a foundational certification does and does not evidence. It\ndemonstrates a working vocabulary and a structured grounding in the concepts, which is genuinely\nuseful for talking to stakeholders about what a model can and cannot be trusted to do. It is not\na substitute for having built something, which is the gap that projects like this question\nanswering service are meant to close. The certification came first and the applied work followed,\nin that order, and he would rather be asked about the second.",
+    "id": "certifications",
+    "tags": [
+      "certification",
+      "aws",
+      "ai"
+    ],
+    "title": "Ben's certifications"
+  },
+  {
+    "body": "Ben holds a BEng with Honours in Engineering Science from the University of Auckland, awarded\nFirst Class Honours, studied from February 2018 to November 2021.\n\nEngineering Science at Auckland is a modelling and optimisation degree rather than a\nsoftware-engineering one. The relevant coursework was programming in Python and MATLAB,\nstatistics, machine learning, and optimisation. So the mathematical and statistical grounding is\nformal, while most of his software and data engineering practice has been learned on the job and\nin his own projects.\n\nThat is worth stating plainly rather than blurring, because it explains the shape of what he\nknows. He is comfortable reasoning about a model, a distribution or an optimisation problem from\nfirst principles, and his instincts about schema design, testing discipline and deployment came\nfrom doing the work at Visa, Russell McVeagh and in his own repositories rather than from a\nsyllabus.",
+    "id": "education",
+    "tags": [
+      "education",
+      "university",
+      "engineering-science"
+    ],
+    "title": "Ben's degree"
+  },
+  {
+    "body": "A few habits show up across everything Ben builds, consistently enough to be worth stating as\npractice rather than preference.\n\nHe works test-first. The test is written and watched to fail before the implementation exists,\nbecause a test that has never been seen failing is a test whose behaviour is unverified rather\nthan confirmed. The question answering service producing this answer was built that way\nthroughout.\n\nHe treats a fix he cannot explain as unfinished. The race condition he debugged at Visa is the\nexample he uses: his first attempt made the symptom rarer without addressing the cause, and a\nsymptom that gets rarer is easy to mistake for one that is gone.\n\nEvery project runs lint, type checking and tests in CI on every pull request, and he works on\nfeature branches with pull requests rather than committing to the main branch, including on\nrepositories where he is the only contributor.\n\nHe writes decisions down with their rejected alternatives attached. Most entries in this corpus\ntake that form: the choice, the thing not chosen, and the condition under which the answer would\nchange. A decision recorded without its alternative is indistinguishable from a default, and the\nmost useful thing to know about any technical choice is what would have to be true for it to be\nwrong.",
+    "id": "how-i-work",
+    "tags": [
+      "meta",
+      "practices",
+      "testing",
+      "process"
+    ],
+    "title": "How Ben works"
+  },
+  {
+    "body": "Ben's personal site renders a Windows 95 desktop with draggable, focusable, minimisable windows,\nand the whole thing is built on a pure reducer.\n\nThe stated reason for the site is that he wanted somewhere to put his CV that is more memorable\nthan a PDF. The real engineering reason is the second one he gives: a window manager is a\ngenuinely interesting piece of state modelling.\n\nThat is what makes the choice defensible rather than decorative. Window management is a nest of\ninteracting state that is easy to get subtly wrong: z-order, which window has focus, what happens\nto focus when the focused window is minimised or closed, and how a drag in progress interacts\nwith all of it. Modelling that as a pure reducer means every transition is a function from state\nand action to new state, with no timers or DOM measurements hidden inside, so the awkward cases\ncan be tested directly as a sequence of actions rather than by driving a browser.\n\nThe visual theme is the part people notice. The reducer is the part worth reviewing.",
+    "id": "personal-site-window-manager",
+    "tags": [
+      "personal-site",
+      "react",
+      "state-management",
+      "reducer",
+      "decision"
+    ],
+    "title": "Why the personal site is built around a window manager"
+  },
+  {
+    "body": "Benjamin Best is a data engineer based in London, with the right to work in the UK. He is on a Youth Mobility Visa until June 2029. He has four\nyears of commercial experience across three sectors: financial services at Visa, law at Russell\nMcVeagh, and technology research at Technology Investment Network.\n\nHis range is deliberately end to end. At Visa he worked on cloud infrastructure and ETL at one\nend and on the Power BI dashboards that surfaced the resulting data at the other, which is unusual\nfor a data engineering title and is the thread running through most of his work: he tends to own\na thing from the storage layer through to the screen a user actually looks at.\n\nHe is open to data engineering roles and, after roughly the last year at Visa spent in a more\nsoftware-focused position, to software engineering ones as well. He is targeting Junior Software Engineering roles, Mid-Level Data Engineering Roles, and anything similar. The work he has enjoyed most has involved holding both ends at\nonce, and the projects he builds in his own time tend to have the same shape.",
+    "id": "profile-summary",
+    "tags": [
+      "profile",
+      "summary"
+    ],
+    "title": "Who Ben is, in one paragraph"
+  },
+  {
+    "body": "This widget is itself one of Ben's projects. It is a retrieval-augmented question answering\nservice over a curated corpus about his work: Python, FastAPI, Claude for generation, Voyage\nembeddings for one of the retrievers, and no vector database. The repository is\ngithub.com/benbest123/ask-ben.\n\nHe built it to have hands-on experience with large language model APIs that includes both prompt\ndesign and real evaluation, rather than the usual demonstration that stops once something\nresponds.\n\nThe organising idea is that the corpus is small enough to fit in a single prompt, roughly ten to\nfifteen thousand tokens. That makes the obvious challenge to the whole project fair: why build\nretrieval at all when you could just send everything? Rather than argue about it, full-context\nprompting is implemented as a control arm in the evaluation and measured against the two\nretrievers. Where retrieval loses, the README says so.\n\nThe parts most likely to be interrogated in an interview carry measurements rather than\nassertions: three prompt versions compared on outcomes, three retrieval strategies compared on\noutcomes, and an evaluation whose language model judge is itself validated against Ben's own hand\nlabels before its scores are believed.",
+    "id": "project-ask-ben",
+    "tags": [
+      "project",
+      "ask-ben",
+      "rag",
+      "llm",
+      "evaluation",
+      "python"
+    ],
+    "title": "This question-answering widget"
+  },
+  {
+    "body": "The EPL Score Tracker is a Premier League score tracker: a React front end over a Node and\nExpress backend that syncs fixture data from an external API into Postgres and serves it over\nREST. The backend repository is github.com/benbest123/epl-tracker-backend.\n\nBen built it to practise designing a REST API and a sync job against a third-party feed he did\nnot control, which is a different problem from querying a database you own. A feed you do not\ncontrol can be slow, rate-limited, temporarily wrong, or shaped differently from what your schema\nexpects, and the sync job is where all of that has to be absorbed before it reaches anything\nelse.\n\nIt is not deployed, and the reason is worth stating rather than hiding: the free tier of the\nfixture API omits the current season, so a live deployment would show an empty or stale table.\nBen's personal site marks it as running locally rather than live for that reason. No project on\nthe site claims a deployment it does not have.",
+    "id": "project-epl-tracker",
+    "tags": [
+      "project",
+      "epl",
+      "react",
+      "nodejs",
+      "rest-api",
+      "postgres"
+    ],
+    "title": "EPL Score Tracker"
+  },
+  {
+    "body": "Ben's personal site at benbest.uk is a Windows 95 desktop rendered in the browser: a custom\nwindow manager with draggable, focusable, minimisable windows, built on a pure reducer. It is\nReact and TypeScript with Vite, Tailwind and 98.css, deployed on Vercel, and the repository is\ngithub.com/benbest123/personal-site.\n\nHe built it for two reasons. The first is that he wanted somewhere to put his CV that is more\nmemorable than a PDF. The second is the honest one: a window manager is a genuinely interesting\npiece of state modelling, which is a better reason to build something than the fact that it looks\nnice.\n\nThe site is a static build, which is the constraint that made the hosting decision cheap. Vercel\nauto-detects the Vite preset, so there is no configuration file and no build overrides, and any\nstatic host would serve the output equally well. That reversibility was the point of the choice\nrather than a side effect. This question answering widget is the first thing to break the static\nrule, which is why it lives in a separate repository.",
+    "id": "project-personal-site",
+    "tags": [
+      "project",
+      "personal-site",
+      "react",
+      "typescript",
+      "vite",
+      "frontend"
+    ],
+    "title": "Ben's personal site"
+  },
+  {
+    "body": "RYM Hide Ratings is a Firefox extension that hides RateYourMusic ratings on a release page until\nyou have rated it yourself. It is published on the Mozilla add-ons store and the repository is\ngithub.com/benbest123/rym-hide-ratings. It is written in JavaScript against the WebExtensions\nAPI.\n\nBen built it partly to scratch his own itch, which is that seeing an aggregate score before\nlistening anchors your own opinion to it, and partly to learn what shipping through a real review\nprocess actually involves.\n\nThat second half is the reason it is on his site at all. It is a small piece of JavaScript, but\nit is the only one of his projects that went through an external reviewer with the power to\nreject it: manifest permissions have to be justified and minimal, the listing has to satisfy\nstore policy, and updates go through the same gate again. Requesting the narrowest set of\npermissions that still does the job is a different discipline from writing code that works.",
+    "id": "project-rym-hide-ratings",
+    "tags": [
+      "project",
+      "browser-extension",
+      "javascript",
+      "firefox",
+      "shipping"
+    ],
+    "title": "RYM Hide Ratings, Ben's Firefox extension"
+  },
+  {
+    "body": "Snip is a full-stack URL shortener, live at snip-iota.vercel.app, built in TypeScript with\nNext.js, PostgreSQL, Zod and deployed on Vercel. The repository is github.com/benbest123/url-shortener.\n\nIt has JWT authentication carried over httpOnly cookies, raw SQL against Postgres with no ORM,\nand Zod validation on every API route.\n\nBen built it to do something end to end with no framework hand-holding: owning the schema, the\nauthentication and the deploy pipeline rather than inheriting them from a starter template. The\ntwo choices that follow from that are the httpOnly cookie for the token, which keeps it out of\nreach of any JavaScript running on the page and therefore out of reach of cross-site scripting,\nand validating at the API boundary with Zod so that untrusted input is parsed into a known shape\nonce rather than checked repeatedly and inconsistently further in. It is currently still in progress, with the next step being to add some kind of caching mechanism, likely using Redis.\n\nThe no-ORM decision has its own entry in this corpus, because it is the one with a real cost\nattached.",
+    "id": "project-snip",
+    "tags": [
+      "project",
+      "snip",
+      "typescript",
+      "nextjs",
+      "postgres",
+      "auth"
+    ],
+    "title": "Snip, Ben's URL shortener"
+  },
+  {
+    "body": "Ben was a Business Intelligence Analyst at Russell McVeagh, a New Zealand law firm, from June\n2022 to August 2023. He owned the firm business-intelligence reporting, delivering revenue,\nclient-activity and time-allocation reporting to senior stakeholders.\n\nThe main piece of work was building self-service Power BI dashboards end to end for the firm\nroughly three hundred lawyers, replacing legacy SSRS reports. The measurable outcome was the\nelimination of recurring ad-hoc requests that had previously required someone to write a manual\nSQL extract each time.\n\nThat framing is the thing he took from the role. The reporting backlog was not really a reporting\nproblem. It was that the people asking the questions had no way to answer them without going\nthrough him. Building a dashboard that answers one question well, and building one that lets a\nnon-technical user answer the next twenty themselves, are quite different design problems, and\nonly the second one makes the queue go away.",
+    "id": "role-russell-mcveagh",
+    "tags": [
+      "russell-mcveagh",
+      "power-bi",
+      "bi",
+      "role",
+      "experience"
+    ],
+    "title": "Ben's BI role at Russell McVeagh"
+  },
+  {
+    "body": "Ben was a Research Analyst at Technology Investment Network in New Zealand from November 2021 to\nJune 2022, his first role after graduating.\n\nHe automated the data-collection process in Python, replacing legacy Excel queries and manual\ndata entry, and produced the data analysis and written content that fed the published reports on\nthe New Zealand technology sector.\n\nIt is the smallest role on his CV and the one that set the pattern for the rest. The work he was\nhired to do was largely manual assembly, and the useful contribution turned out to be removing\nmost of it rather than doing it faster. That is also where the writing half of the job came in.\nThe reports were published, so the analysis had to be defensible to readers who had never seen\nthe underlying data, which is close to the habit of documenting decisions and their rejected\nalternatives that shows up throughout his later projects.",
+    "id": "role-tin",
+    "tags": [
+      "tin",
+      "python",
+      "automation",
+      "research",
+      "role",
+      "experience"
+    ],
+    "title": "Ben's analyst role at Technology Investment Network"
+  },
+  {
+    "body": "Ben was an Associate Data Engineer at Visa from May 2024 to June 2026, his most recent role and\nthe longest of his career so far.\n\nThe remit was broader than the title suggests. It covered four fairly distinct areas: a partner\nbilling data pipeline on AWS that he led as feature lead; the replacement of a legacy black-box\nbilling process with a transparent Spark SQL pipeline; the Qlik dashboard embedding layer of a\nReact and Node analytics microsite; and a stretch of sole ownership over Qlik infrastructure\nduring a company-wide cloud migration.\n\nThat mix is why he describes himself as open to both data and software engineering roles. The\nfirst two items are conventional data engineering, meaning ETL, warehousing and infrastructure as\ncode. The third and fourth are much closer to full-stack application work, and alongside them he\ndelivered SQL Server stored procedures and end-to-end Google Analytics instrumentation across a\nmulti-tenant .NET monolith.\n\nEach of these has its own entry in this corpus with the detail behind it.",
+    "id": "role-visa",
+    "tags": [
+      "visa",
+      "role",
+      "experience"
+    ],
+    "title": "Ben's role at Visa"
+  },
+  {
+    "body": "As feature lead at Visa, Ben designed and delivered an AWS data pipeline producing monthly\nbilling and reporting data for eight banking partners.\n\nThe ETL ran on AWS Glue using PySpark. The infrastructure was provisioned with AWS CDK in\nTypeScript, giving each partner its own S3 bucket, Glue job, KMS key and IAM role, so that the\nisolation between partners was enforced by AWS permissions rather than by application logic.\nOnboarding a further partner was a configuration change rather than a manual setup exercise.\n\nFeature lead here meant owning the design and the delivery rather than managing people: deciding\nhow the pipeline was structured, how the partner boundary was drawn, and how the infrastructure\nwas expressed, then building it and seeing it into production.\n\nIt was the largest single piece of work in his time at Visa and the one he points to first. The\nreasoning behind the isolation model has its own entry in this corpus.",
+    "id": "role-visa-billing-pipeline",
+    "tags": [
+      "visa",
+      "aws",
+      "etl",
+      "leadership"
+    ],
+    "title": "The partner billing pipeline Ben led at Visa"
+  },
+  {
+    "body": "Ben recreated a legacy black-box billing process as a transparent Spark SQL pipeline over a cloud\ndata warehouse. It aggregated transaction-level payment data into per-company monthly metrics,\nhandling currency conversion and change-data-capture deduplication along the way.\n\nThe interesting part of this kind of work is not the SQL. It is that the old process was\nauthoritative, in the sense that whatever it produced was by definition what the business had\nbeen billing, but nobody could say precisely how it produced it. So the target was not to build a\ncorrect pipeline. It was to build a pipeline whose differences from the old one could each be\nexplained. Reconciling against a system you cannot read means every discrepancy is a question\nrather than a bug: either the new pipeline is wrong or the old one was, and you have to be able\nto say which.\n\nChange-data-capture deduplication mattered for the same reason. Double-counting a restated\ntransaction produces a plausible number, not an obviously broken one, so it fails quietly.",
+    "id": "role-visa-legacy-billing",
+    "tags": [
+      "visa",
+      "spark",
+      "sql",
+      "data-warehouse",
+      "migration"
+    ],
+    "title": "Replacing a black-box billing process at Visa"
+  },
+  {
+    "body": "Ben built the Qlik-embedding layer of a React and Node.js analytics microsite at Visa, covering\niframe orchestration and cross-frame communication, and migrated around twenty-five dashboards\nonto a compliant Content Security Policy.\n\nThe cross-frame work exists because an embedded frame and its host page cannot share a JavaScript\ncontext. Anything the host needs to know about the state of the dashboard inside the frame has to\ncross a message boundary, and that boundary is itself part of the application's security surface\nrather than a convenience.\n\nAlongside this he delivered SQL Server stored procedures and end-to-end Google Analytics\ninstrumentation across a multi-tenant .NET monolith, covering per-partner enablement, server-side\ninitialisation, security-header updates and form event capture.\n\nThis was the more software-focused half of his time at Visa, and the reason he is open to\nsoftware engineering roles as well as data ones. The reasoning behind how the Content Security\nPolicy migration was approached has its own entry in this corpus.",
+    "id": "role-visa-qlik",
+    "tags": [
+      "visa",
+      "react",
+      "nodejs",
+      "qlik",
+      "frontend",
+      "security"
+    ],
+    "title": "The Qlik embedding layer Ben built at Visa"
+  },
+  {
+    "body": "For five weeks, Ben independently maintained the Qlik dashboards and Qlik infrastructure through\nthe absence of the team senior engineer, a stretch that happened to coincide with a company-wide\non-premise-to-cloud migration. He worked alongside the operations team to resolve configuration\nand infrastructure issues as they arose.\n\nTwo pieces of engineering came out of that period. The first was a reliable load-completion\ndetection mechanism for third-party dashboards that exposed no official data-ready API, so there\nwas no supported way to ask whether a dashboard had finished loading. The second was a data race\ncondition in the async provisioning flow, which he debugged and fixed after an initial attempt\nusing polling turned out to be the wrong shape of solution.\n\nThe circumstances are the part worth noting as much as the code. Sole ownership of a system\nduring a migration means every problem arrives without anyone more senior to escalate it to, and\nthe migration itself was generating most of them.\n\nThe race condition has its own entry in this corpus, because the first fix being wrong is the\nuseful part.",
+    "id": "role-visa-solo-cover",
+    "tags": [
+      "visa",
+      "qlik",
+      "infrastructure",
+      "ownership",
+      "debugging"
+    ],
+    "title": "Five weeks holding Qlik alone during a cloud migration"
+  },
+  {
+    "body": "On AWS, Ben has worked with Glue, CDK, S3, CloudFormation, IAM, CodePipeline, Athena and KMS,\nmostly in combination rather than in isolation, building the partner billing pipeline at Visa\nwhere the ETL ran on Glue and the whole per-partner infrastructure was defined in CDK.\n\nHis DevOps tooling is Git, GitHub Actions, CI/CD and infrastructure as code. Every one of his own\nprojects runs lint, type checks and tests on each pull request, a habit carried over from the\nVisa work rather than something done for display.\n\nOn the BI side he has used Power BI, Qlik and SSRS in production. Power BI most deeply, from\nbuilding self-service dashboards for around three hundred lawyers at Russell McVeagh; Qlik from\nthe embedding and infrastructure work at Visa; SSRS mostly as the legacy system he was replacing.\n\nInfrastructure as code is the piece he would defend hardest of these. The per-partner isolation\non the billing pipeline was only reviewable because it was written as code.",
+    "id": "skills-cloud-bi",
+    "tags": [
+      "skills",
+      "aws",
+      "devops",
+      "ci-cd",
+      "power-bi",
+      "qlik"
+    ],
+    "title": "Ben's cloud, DevOps and BI tooling"
+  },
+  {
+    "body": "Ben's main languages are Python, TypeScript, JavaScript and SQL.\n\nOn the data side, his working set is PostgreSQL, SQL Server with T-SQL including stored\nprocedures, PySpark, REST APIs, ETL, and data warehousing. He has also spent time with dbt and\nBigQuery, at the level of having worked through the model, test and documentation workflow rather\nthan having run it in production. On the application side, Node.js, Express and React, with HTML,\nCSS and Tailwind.\n\nSQL and Python are the two he would claim genuine depth in. Most of the work at Visa, Russell\nMcVeagh and Technology Investment Network ran through one or both of them. TypeScript sits close\nbehind, from the AWS CDK infrastructure at Visa, the Next.js work on Snip, and this personal\nsite.\n\nHis testing practice is pytest on the Python side and Jest or Vitest on the JavaScript side, and\nhe treats it as part of writing the code rather than a separate phase afterwards.",
+    "id": "skills-languages-data",
+    "tags": [
+      "skills",
+      "python",
+      "sql",
+      "typescript",
+      "etl",
+      "dbt"
+    ],
+    "title": "Languages and data tooling Ben works in"
+  },
+  {
+    "body": "Snip talks to Postgres in raw SQL with no ORM. This was the point of the project rather than an\noversight: Ben built it specifically to work end to end with no framework hand-holding, and an\nORM is the single largest piece of hand-holding available in that stack.\n\nWhat he wanted from it was ownership of two things an ORM tends to take over. The first is the\nschema, including what the indexes and constraints actually are rather than what a set of model\nclasses implies they should be. The second is the query plan, because with an ORM the SQL that\nreaches the database is generated, and the distance between what you wrote and what ran is where\nperformance surprises live.\n\nThe cost is real and he does not pretend otherwise: it is more boilerplate, every query has to be\nwritten and maintained by hand, and nothing stops a typo in a column name until runtime. Zod\nvalidation at the API boundary covers the input side of that, but not the SQL itself.\n\nFor a production application with a large team and a wide schema, he would expect that\ncalculation to come out the other way.",
+    "id": "snip-no-orm",
+    "tags": [
+      "snip",
+      "sql",
+      "postgres",
+      "tradeoffs",
+      "decision"
+    ],
+    "title": "Why Snip uses raw SQL and no ORM"
+  },
+  {
+    "body": "Migrating around twenty-five embedded Qlik dashboards onto a compliant Content Security Policy at\nVisa was largely an exercise in resisting the obvious fix.\n\nEmbedding a third-party analytics tool and tightening a Content Security Policy around it are\nopposed goals: the tool wants to load scripts, styles and fonts from wherever it likes, and the\npolicy exists to stop precisely that. Every dashboard produced console errors, and every one of\nthose errors had a fast fix available, which was to widen the policy until the error stopped.\n\nBen established what each dashboard genuinely required instead. The reasoning is that a policy\nrelaxed to silence a warning provides no protection while still appearing on the page as a\ncontrol, which is worse than having no policy at all, because it will pass an audit. Adding\nunsafe-inline to make a dashboard render removes most of what a Content Security Policy is for.\n\nIt was slower, and that is the honest cost. Twenty-five dashboards each needed their real\nrequirements established rather than one permissive rule applied to all of them. The output was a\npolicy that was genuinely narrow rather than one that was merely present.",
+    "id": "visa-csp-not-widened",
+    "tags": [
+      "visa",
+      "security",
+      "csp",
+      "qlik",
+      "decision"
+    ],
+    "title": "Why the CSP migration meant narrowing, not silencing"
+  },
+  {
+    "body": "On the partner billing pipeline at Visa, each of the eight banking partners got its own S3\nbucket, Glue job, KMS key and IAM role. The alternative, and the one most teams reach for first,\nis a shared bucket with a partner identifier on each row and application code that filters by it.\n\nBen drew the boundary in IAM and KMS instead, and the reason is what happens when someone is\nwrong. If isolation is enforced in application code, then a mistaken join, a missing WHERE clause\nor a mis-set variable puts one bank's billing data in another bank's report, and nothing stops\nit, because the code has permission to read everything. If isolation is enforced in IAM, the same\nmistake fails: the role cannot read the other bucket and the job errors instead of quietly\nproducing a wrong number.\n\nThe second half of the decision was defining it in AWS CDK rather than clicking it into the\nconsole. That made onboarding a ninth partner a configuration change rather than a manual walk\nthrough several services, and more importantly it made the isolation reviewable in a pull request\nrather than trusted to whoever configured it last and remembered correctly.\n\nThe cost is more infrastructure objects to manage. At eight partners that was clearly worth it.",
+    "id": "visa-isolation-in-iam-not-code",
+    "tags": [
+      "visa",
+      "aws",
+      "iam",
+      "security",
+      "decision"
+    ],
+    "title": "Why partner isolation lived in IAM, not application code"
+  },
+  {
+    "body": "During the five weeks Ben held Qlik alone at Visa, he debugged a data race condition in the async\nprovisioning flow. His first fix was wrong, which is why it is the story he tells.\n\nHe started with polling: check whether the resource is ready, wait, check again. That worked in\ntesting and kept failing intermittently in practice. The reason is that polling answers the\nquestion of whether something is ready now, and a race condition is not a question about now. It\nis a question about ordering: was this ready before that other thing happened? Polling more\nfrequently narrows the window without closing it, so a polling fix to a race looks like it is\nworking right up until it is not.\n\nHe replaced it with a timestamp-based heuristic, which compares when things happened rather than\nsampling whether they have happened, and that addressed the ordering directly.\n\nThe general lesson he takes from it is about diagnosis rather than concurrency. The first fix\nmade the symptom rarer, and a symptom that gets rarer is easy to mistake for one that is gone.\nThe tell was that he could not explain why it worked, only that it seemed to.",
+    "id": "visa-polling-to-timestamp",
+    "tags": [
+      "visa",
+      "debugging",
+      "concurrency",
+      "decision"
+    ],
+    "title": "Getting a race condition wrong before getting it right"
+  },
+  {
+    "body": "Replacing the legacy billing process at Visa posed a problem that the SQL itself did not. The old\nprocess was authoritative, in the sense that whatever it produced was by definition what the\nbusiness had been billing, but nobody could say precisely how it produced it.\n\nThat changes the goal. The target was not to build a correct pipeline, because there was no\nindependent definition of correct to build towards. It was to build a pipeline whose every\ndifference from the old one could be explained.\n\nSo each discrepancy became a question rather than a defect: either the new pipeline was wrong, or\nthe old one had been, and the work was being able to say which, with a reason. Some differences\nturned out to be the new pipeline being right, and those are the ones that need the most\nevidence, because fixing them means telling someone their historical numbers were wrong.\n\nChange-data-capture deduplication mattered for the same underlying reason. Double-counting a\nrestated transaction does not produce an obviously broken figure, it produces a plausible one, so\nit never announces itself. The general principle Ben works from is that in billing and financial\ndata, the dangerous failures are the ones that still look reasonable.",
+    "id": "visa-reconciling-a-black-box",
+    "tags": [
+      "visa",
+      "migration",
+      "data-quality",
+      "decision"
+    ],
+    "title": "How to replace a system nobody can read"
+  },
+  {
+    "body": "Ben is targeting mid-level data engineering roles and junior software engineering roles, and\nanything close to either. The software engineering side follows from roughly the last year at\nVisa spent in a more software-focused position.\n\nWhat he is actually optimising for is the shape of the work rather than the title. The work he\nhas enjoyed most has been end to end: owning something from the cloud infrastructure and the ETL\nthrough to the interface that puts the result in front of a user. Roles that split those apart,\nwhere the data lands in a warehouse and becomes someone else's problem, are a worse fit for him\nthan the title alone would suggest.\n\nHe is drawn to teams that write things down. The pattern running through his own projects is that\nevery significant decision has its rejected alternative recorded next to it, and he would rather\njoin somewhere that treats that as normal than somewhere it has to be argued for.\n\nHe is based in London and holds a Youth Mobility Visa valid until June 2029, which gives him the\nright to work in the UK without sponsorship for that period. Specifics about availability, notice\nand compensation are best discussed directly rather than through this widget.",
+    "id": "what-im-looking-for",
+    "tags": [
+      "meta",
+      "job-search",
+      "preferences"
+    ],
+    "title": "What Ben is looking for next"
+  }
+]
