@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check .
+      - name: Format check
+        run: ruff format --check .
+      - name: Types
+        run: mypy
+      # Tests must pass with no API keys present. Every Anthropic and Voyage
+      # call is mocked; a test that needs a key is a test that cannot gate a PR.
+      - name: Tests
+        run: pytest
