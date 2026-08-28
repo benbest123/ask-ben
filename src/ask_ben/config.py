@@ -42,7 +42,15 @@ DEFAULT_RETRIEVER = "bm25"
 DEFAULT_K = 4
 
 MAX_QUESTION_CHARS = 500
-MAX_ANSWER_TOKENS = 1024
+
+# Output is billed at 5x input, so this is the cheapest lever on abuse cost.
+# Measured 2026-08-28 with count_tokens against the real corpus: a retrieval
+# request is ~1,414 input tokens and a good answer is ~150 output tokens. At
+# Haiku 4.5 rates that is ~$0.0022 a question, but at the old 1024-token cap the
+# worst case was ~$0.0065 -- three times the cost for output nobody wants, since
+# the prompt asks for two to four sentences. 300 leaves headroom over a typical
+# answer while capping the tail.
+MAX_ANSWER_TOKENS = 300
 
 # Provisional. Tuned against evals/golden.yaml in Task 11 and updated there.
 # BM25 scores are unbounded; cosine similarity is bounded to [-1, 1]. The two
