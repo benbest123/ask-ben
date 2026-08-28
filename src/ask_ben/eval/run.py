@@ -40,6 +40,15 @@ from ask_ben.retrieve import Hit, Retriever
 
 RESULTS_DIR = EVALS_DIR / "results"
 
+# USD per million tokens, (input, output). Kept here rather than fetched: a run
+# that silently reprices itself is not reproducible.
+PRICES: dict[str, tuple[float, float]] = {
+    "claude-haiku-4-5-20251001": (1.00, 5.00),
+    "claude-haiku-4-5": (1.00, 5.00),
+    "claude-sonnet-5": (2.00, 10.00),
+    "claude-opus-5": (5.00, 25.00),
+}
+
 
 @dataclass(frozen=True)
 class RunResult:
@@ -109,6 +118,8 @@ def evaluate(
             "grounded": None,
             "quality": None,
             "judge_reasoning": None,
+            "judge_input_tokens": 0,
+            "judge_output_tokens": 0,
             "input_tokens": result.meta["input_tokens"],
             "output_tokens": result.meta["output_tokens"],
             "cache_read_input_tokens": result.meta["cache_read_input_tokens"],
@@ -118,7 +129,7 @@ def evaluate(
         # Judge only answers that were actually generated. Grading a scripted
         # refusal spends money to evaluate a constant string.
         if not result.refused:
-            verdict = judge_answer(
+            judgement = judge_answer(
                 judge_client,
                 question=question.question,
                 context=context,
@@ -126,10 +137,13 @@ def evaluate(
                 reference=question.reference,
                 model=judge_model,
             )
+            verdict = judgement.verdict
             row["declined"] = verdict.declined
             row["grounded"] = verdict.grounded
             row["quality"] = verdict.quality
             row["judge_reasoning"] = verdict.reasoning
+            row["judge_input_tokens"] = judgement.input_tokens
+            row["judge_output_tokens"] = judgement.output_tokens
 
         row["refusal_correct"] = refusal_correct(question.expected, declined=row["declined"])
         rows.append(row)
@@ -154,7 +168,22 @@ def evaluate(
         "output_tokens": sum(r["output_tokens"] for r in rows),
         "cache_read_input_tokens": sum(r["cache_read_input_tokens"] for r in rows),
         "cache_creation_input_tokens": sum(r["cache_creation_input_tokens"] for r in rows),
+        "judge_input_tokens": sum(r["judge_input_tokens"] for r in rows),
+        "judge_output_tokens": sum(r["judge_output_tokens"] for r in rows),
     }
+    summary["answer_cost_usd"] = round(
+        summary["input_tokens"] / 1e6 * PRICES[model][0]
+        + summary["output_tokens"] / 1e6 * PRICES[model][1]
+        + summary["cache_read_input_tokens"] / 1e6 * PRICES[model][0] * 0.1
+        + summary["cache_creation_input_tokens"] / 1e6 * PRICES[model][0] * 1.25,
+        4,
+    )
+    summary["judge_cost_usd"] = round(
+        summary["judge_input_tokens"] / 1e6 * PRICES[judge_model][0]
+        + summary["judge_output_tokens"] / 1e6 * PRICES[judge_model][1],
+        4,
+    )
+    summary["total_cost_usd"] = round(summary["answer_cost_usd"] + summary["judge_cost_usd"], 4)
 
     config = {
         "retriever": retriever.name,
@@ -196,6 +225,10 @@ def render_report(result: RunResult) -> str:
         f"| Output tokens | {s['output_tokens']} |",
         f"| Cache-read tokens | {s['cache_read_input_tokens']} |",
         f"| Cache-write tokens | {s['cache_creation_input_tokens']} |",
+        f"| Judge tokens (in / out) | {s['judge_input_tokens']} / {s['judge_output_tokens']} |",
+        f"| **Answer cost** | ${s['answer_cost_usd']:.4f} |",
+        f"| **Judge cost** | ${s['judge_cost_usd']:.4f} |",
+        f"| **Total cost** | ${s['total_cost_usd']:.4f} |",
         "",
         "## Failures",
         "",

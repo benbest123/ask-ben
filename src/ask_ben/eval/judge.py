@@ -16,6 +16,7 @@ Two deliberate asymmetries:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -71,6 +72,21 @@ class Verdict(BaseModel):
     reasoning: str = Field(description="One or two sentences justifying the grades")
 
 
+@dataclass(frozen=True)
+class Judgement:
+    """A verdict plus what it cost to obtain.
+
+    Judging is the expensive half of this project -- on the first sweep the judge
+    cost roughly five times the answers it was grading, because it re-reads the
+    full retrieved context on a model priced 5x higher. Reporting a cost figure
+    that omits it would understate the true cost of a run by about 85%.
+    """
+
+    verdict: Verdict
+    input_tokens: int
+    output_tokens: int
+
+
 def judge_answer(
     client: Any,
     *,
@@ -79,7 +95,7 @@ def judge_answer(
     answer: str,
     reference: str | None,
     model: str = JUDGE_MODEL,
-) -> Verdict:
+) -> Judgement:
     """Grade one answer. Structured output, so the verdict cannot come back as prose."""
     user = (
         f"## Question\n\n{question}\n\n"
@@ -95,7 +111,12 @@ def judge_answer(
         output_format=Verdict,
     )
     verdict: Verdict = response.parsed_output
-    return verdict
+    usage = getattr(response, "usage", None)
+    return Judgement(
+        verdict=verdict,
+        input_tokens=int(getattr(usage, "input_tokens", 0) or 0),
+        output_tokens=int(getattr(usage, "output_tokens", 0) or 0),
+    )
 
 
 def load_human_labels(path: Path | None = None) -> dict[str, bool]:

@@ -71,8 +71,14 @@ class StubClient:
         self.messages = StubMessages()
 
 
+class StubJudgeUsage:
+    input_tokens = 1600
+    output_tokens = 90
+
+
 class StubParsed:
     parsed_output = Verdict(declined=False, grounded=True, quality=4, reasoning="fine")
+    usage = StubJudgeUsage()
 
 
 class StubJudgeMessages:
@@ -206,3 +212,18 @@ def test_the_report_lists_failures_with_a_reason() -> None:
 def test_evaluate_uses_real_corpus_ids() -> None:
     """Guards the fixture against the corpus drifting out from under it."""
     assert REAL_ID in {c.id for c in load_corpus()}
+
+
+def test_the_summary_prices_the_judge_separately_from_the_answers() -> None:
+    """The judge is ~5x the cost of what it grades, and was omitted entirely at first."""
+    summary = run().summary
+    assert summary["judge_input_tokens"] == 1600
+    assert summary["judge_cost_usd"] > summary["answer_cost_usd"]
+    assert summary["total_cost_usd"] == round(
+        summary["answer_cost_usd"] + summary["judge_cost_usd"], 4
+    )
+
+
+def test_a_gated_row_costs_nothing_to_judge() -> None:
+    row = next(r for r in run().rows if r["id"] == "out-of-scope-compensation")
+    assert row["judge_input_tokens"] == 0
