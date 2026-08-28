@@ -13,6 +13,7 @@ apart and retrieval quietly starts answering from stale text.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from collections.abc import Sequence
@@ -23,6 +24,25 @@ import numpy as np
 
 from ask_ben.chunks import Chunk, load_corpus
 from ask_ben.config import CORPUS_JSON, EMBED_DIM, EMBED_MODEL, EMBEDDINGS_NPY, INDEX_DIR
+
+MANIFEST_JSON = INDEX_DIR / "manifest.json"
+
+
+def corpus_fingerprint(chunks: list[Chunk]) -> str:
+    """SHA-256 of exactly the text that gets embedded.
+
+    This closes a gap the CI freshness job cannot: that job regenerates
+    corpus.json and diffs it, which catches "edited the corpus and forgot to
+    rebuild". It does NOT catch "rebuilt corpus.json without re-embedding",
+    because embeddings need an API key and CI has none. The result would be an
+    index whose text is current and whose vectors describe the previous wording
+    -- retrieval quietly ranking against text that no longer exists.
+    """
+    digest = hashlib.sha256()
+    for chunk in chunks:
+        digest.update(chunk.text.encode("utf-8"))
+        digest.update(b"\x00")
+    return digest.hexdigest()
 
 
 class ChunkRecord(TypedDict):
@@ -111,15 +131,39 @@ def write_index(
     *,
     corpus_json: Path = CORPUS_JSON,
     embeddings_npy: Path = EMBEDDINGS_NPY,
+    manifest_json: Path | None = None,
+    fingerprint: str | None = None,
 ) -> None:
     write_records(records, corpus_json)
     np.save(embeddings_npy, vectors)
+    if fingerprint is not None:
+        # Derived from the index directory rather than the module constant, so a
+        # test writing to a tmp path gets a tmp manifest instead of the real one.
+        target = (
+            manifest_json if manifest_json is not None else corpus_json.parent / "manifest.json"
+        )
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(
+            json.dumps(
+                {
+                    "corpus_sha256": fingerprint,
+                    "embed_model": EMBED_MODEL,
+                    "embed_dim": EMBED_DIM,
+                    "n_chunks": len(records),
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
 
 
 def load_index(
     *,
     corpus_json: Path = CORPUS_JSON,
     embeddings_npy: Path = EMBEDDINGS_NPY,
+    manifest_json: Path | None = None,
 ) -> tuple[list[Chunk], np.ndarray]:
     """Load the committed index, refusing to return a mismatched pair.
 
@@ -145,6 +189,25 @@ def load_index(
     chunks = [
         Chunk(id=r["id"], title=r["title"], tags=tuple(r["tags"]), body=r["body"]) for r in records
     ]
+
+    manifest_path = (
+        manifest_json if manifest_json is not None else corpus_json.parent / "manifest.json"
+    )
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        actual = corpus_fingerprint(chunks)
+        if manifest.get("corpus_sha256") != actual:
+            raise ValueError(
+                "index is out of sync: the committed embeddings were built from "
+                "different chunk text. Run `python -m ask_ben.ingest`."
+            )
+        if manifest.get("embed_model") != EMBED_MODEL:
+            raise ValueError(
+                f"index is out of sync: embeddings were built with "
+                f"{manifest.get('embed_model')!r}, config says {EMBED_MODEL!r}. "
+                "Run `python -m ask_ben.ingest`."
+            )
+
     return chunks, vectors
 
 
@@ -166,7 +229,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     from voyageai.client import Client
 
     records, vectors = build_index(chunks, Client())
-    write_index(records, vectors)
+    write_index(records, vectors, fingerprint=corpus_fingerprint(chunks))
     print(f"Wrote {len(records)} chunks to {CORPUS_JSON} and {EMBEDDINGS_NPY}")
 
 

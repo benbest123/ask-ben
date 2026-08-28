@@ -1,0 +1,6 @@
+{
+  "corpus_sha256": "47fe4e33edb23b0683f3ecc52b93672ff0b2c4438f5878231174fe204c57f4e0",
+  "embed_dim": 1024,
+  "embed_model": "voyage-4-lite",
+  "n_chunks": 29
+}

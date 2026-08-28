@@ -151,3 +151,46 @@ def test_records_only_rebuild_needs_no_client(tmp_path: Path) -> None:
     written = corpus_json.read_text(encoding="utf-8")
     assert '"id": "a"' in written
     assert written.endswith("\n")
+
+
+def test_the_committed_index_matches_the_committed_corpus() -> None:
+    """Catches a stale index in CI, with no API key and no network.
+
+    The CI freshness job regenerates corpus.json and diffs it, which catches
+    "edited the corpus and forgot to rebuild". It cannot catch "rebuilt
+    corpus.json without re-embedding", because embeddings need a key CI does not
+    have -- leaving an index whose text is current and whose vectors describe the
+    previous wording. Retrieval would then rank against text that no longer
+    exists, silently and while still returning plausible chunks.
+    """
+    from ask_ben.chunks import load_corpus
+    from ask_ben.ingest import corpus_fingerprint, load_index
+
+    chunks, _vectors = load_index()
+    assert corpus_fingerprint(chunks) == corpus_fingerprint(load_corpus()), (
+        "index/ is stale relative to corpus/. Run `python -m ask_ben.ingest`."
+    )
+
+
+def test_a_changed_chunk_invalidates_the_index(tmp_path: Path) -> None:
+    from ask_ben.ingest import corpus_fingerprint
+
+    original = [Chunk(id="a", title="A", tags=(), body="Body A")]
+    edited = [Chunk(id="a", title="A", tags=(), body="Body A, revised")]
+    records, vectors = build_index(original, FakeVoyage())
+    corpus_json, embeddings_npy = tmp_path / "c.json", tmp_path / "e.npy"
+    manifest = tmp_path / "m.json"
+    write_index(
+        records,
+        vectors,
+        corpus_json=corpus_json,
+        embeddings_npy=embeddings_npy,
+        manifest_json=manifest,
+        fingerprint=corpus_fingerprint(original),
+    )
+
+    # Simulate `--records-only`: the text is rebuilt, the vectors are not.
+    write_records(build_records(edited), corpus_json)
+
+    with pytest.raises(ValueError, match="different chunk text"):
+        load_index(corpus_json=corpus_json, embeddings_npy=embeddings_npy, manifest_json=manifest)
