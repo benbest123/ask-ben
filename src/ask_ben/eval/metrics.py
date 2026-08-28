@@ -85,24 +85,32 @@ def citation_validity(cited: list[str], retrieved_ids: list[str]) -> bool:
     return set(cited).issubset(set(retrieved_ids))
 
 
-def declined(refused: bool, sources: list[str]) -> bool:
-    """Did the system decline, by either of its two routes?
+def refusal_correct(expected: str, *, declined: bool) -> bool:
+    """Did the system do the right thing about answering at all?
 
-    `refused` covers only the relevance gate. The model can also see the context
-    and decide in prose that it does not answer the question, which costs a
-    request and leaves `refused` False. Both are declines from a visitor's point
-    of view, and a refusal metric that counted only the first would score a
-    well-behaved system as broken.
+    `declined` comes from two places: the relevance gate (deterministic and free)
+    or, for anything the gate let through, the judge. It deliberately does NOT
+    come from "were there any sources", which is what an earlier version used.
 
-    A grounded answer must cite something -- prompt v2 requires it -- so
-    "answered without citing anything" is the deterministic signature of a prose
-    decline.
+    That heuristic was confounded: prompt v1 never asks for citations, so every
+    v1 answer had empty sources and was scored as a refusal. v1's refusal
+    accuracy came out at 0.367 -- a number that measured whether the prompt
+    requested citations, not whether the system declined. The confound flattered
+    v2 and v3 against the baseline they exist to be compared with.
     """
-    return refused or not sources
+    return (expected == "refuse") == declined
 
 
-def refusal_correct(expected: str, *, refused: bool, sources: list[str]) -> bool:
-    return (expected == "refuse") == declined(refused, sources)
+def retrieval_metrics_apply(retriever_name: str) -> bool:
+    """Recall@k and MRR are ranking metrics; the control arm does no ranking.
+
+    FullContextRetriever returns all 29 chunks in corpus order, so recall@4
+    scores the first four alphabetically and MRR reports a position that means
+    nothing. On one run this gave recall@4 = 0.0 for a question whose chunk had
+    in fact been retrieved. Reporting that as a retrieval score would be a
+    fabricated comparison, so these are recorded as not-applicable instead.
+    """
+    return retriever_name != "full"
 
 
 def fabricated_urls(text: str, corpus_text: str) -> list[str]:

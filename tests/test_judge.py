@@ -27,7 +27,9 @@ class StubClient:
 
 
 def test_judge_returns_a_validated_verdict() -> None:
-    expected = Verdict(grounded=True, quality=4, reasoning="Every claim is supported.")
+    expected = Verdict(
+        declined=False, grounded=True, quality=4, reasoning="Every claim is supported."
+    )
     verdict = judge_answer(
         StubClient(expected),
         question="What did Ben do at Visa?",
@@ -39,7 +41,7 @@ def test_judge_returns_a_validated_verdict() -> None:
 
 
 def test_judge_uses_structured_output_so_the_verdict_cannot_be_prose() -> None:
-    client = StubClient(Verdict(grounded=True, quality=5, reasoning="ok"))
+    client = StubClient(Verdict(declined=False, grounded=True, quality=5, reasoning="ok"))
     judge_answer(client, question="q", context="c", answer="a", reference="r")
     assert client.messages.calls[0]["output_format"] is Verdict
 
@@ -48,14 +50,14 @@ def test_judge_runs_on_a_stronger_model_than_the_system_it_grades() -> None:
     """A cheap judge grading a cheap generator is a closed loop with no external check."""
     from ask_ben.config import ANSWER_MODEL, JUDGE_MODEL
 
-    client = StubClient(Verdict(grounded=True, quality=5, reasoning="ok"))
+    client = StubClient(Verdict(declined=False, grounded=True, quality=5, reasoning="ok"))
     judge_answer(client, question="q", context="c", answer="a", reference="r")
     assert client.messages.calls[0]["model"] == JUDGE_MODEL
     assert JUDGE_MODEL != ANSWER_MODEL
 
 
 def test_judge_prompt_contains_the_context_and_the_answer() -> None:
-    client = StubClient(Verdict(grounded=False, quality=1, reasoning="unsupported"))
+    client = StubClient(Verdict(declined=False, grounded=False, quality=1, reasoning="unsupported"))
     judge_answer(client, question="q", context="THE-CONTEXT", answer="THE-ANSWER", reference="r")
     sent = str(client.messages.calls[0]["messages"])
     assert "THE-CONTEXT" in sent
@@ -64,7 +66,9 @@ def test_judge_prompt_contains_the_context_and_the_answer() -> None:
 
 def test_judge_is_told_when_a_refusal_was_the_correct_outcome() -> None:
     """Otherwise a correct decline gets graded as an unhelpful answer."""
-    client = StubClient(Verdict(grounded=True, quality=5, reasoning="correct decline"))
+    client = StubClient(
+        Verdict(declined=False, grounded=True, quality=5, reasoning="correct decline")
+    )
     judge_answer(client, question="q", context="c", answer="a", reference=None)
     sent = str(client.messages.calls[0]["messages"])
     assert "should be refused" in sent
@@ -72,7 +76,7 @@ def test_judge_is_told_when_a_refusal_was_the_correct_outcome() -> None:
 
 def test_the_judge_never_learns_which_arm_produced_the_answer() -> None:
     """Retriever and prompt version are what is being compared, so the judge must not see them."""
-    client = StubClient(Verdict(grounded=True, quality=5, reasoning="ok"))
+    client = StubClient(Verdict(declined=False, grounded=True, quality=5, reasoning="ok"))
     judge_answer(client, question="q", context="c", answer="a", reference="r")
     call = client.messages.calls[0]
     blob = (str(call["messages"]) + str(call["system"])).lower()

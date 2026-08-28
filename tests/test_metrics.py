@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from ask_ben.eval.metrics import (
     citation_validity,
-    declined,
     fabricated_urls,
     load_golden,
     recall_at_k,
     reciprocal_rank,
     refusal_correct,
+    retrieval_metrics_apply,
 )
 
 
@@ -55,23 +55,33 @@ def test_citing_nothing_is_valid() -> None:
     assert citation_validity([], ["a", "b"]) is True
 
 
-def test_declined_covers_both_routes() -> None:
-    """The gate is one way to decline; the model declining in prose is the other."""
-    assert declined(refused=True, sources=[]) is True
-    assert declined(refused=False, sources=[]) is True
-    assert declined(refused=False, sources=["role-visa"]) is False
-
-
 def test_refusal_correct_compares_expectation_to_behaviour() -> None:
-    assert refusal_correct("refuse", refused=True, sources=[]) is True
-    assert refusal_correct("refuse", refused=False, sources=["a"]) is False
-    assert refusal_correct("answer", refused=False, sources=["a"]) is True
-    assert refusal_correct("answer", refused=True, sources=[]) is False
+    assert refusal_correct("refuse", declined=True) is True
+    assert refusal_correct("refuse", declined=False) is False
+    assert refusal_correct("answer", declined=False) is True
+    assert refusal_correct("answer", declined=True) is False
 
 
-def test_a_prose_decline_counts_as_a_correct_refusal() -> None:
-    """Gate missed it, model caught it. Still the right outcome for the visitor."""
-    assert refusal_correct("refuse", refused=False, sources=[]) is True
+def test_refusal_correctness_does_not_depend_on_citations() -> None:
+    """An uncited but substantive answer has not declined.
+
+    The first version of this metric inferred "declined" from empty sources.
+    Prompt v1 never asks for citations, so every v1 answer had empty sources and
+    scored as a refusal -- giving v1 a refusal accuracy of 0.367 that measured
+    whether the prompt requested citations, not whether the system declined.
+    """
+    assert refusal_correct("answer", declined=False) is True
+
+
+def test_retrieval_metrics_do_not_apply_to_the_control_arm() -> None:
+    """The full-context arm returns everything in corpus order and ranks nothing.
+
+    Scoring recall@4 over the first four alphabetical chunks produced a 0.0 for a
+    question whose chunk had in fact been retrieved.
+    """
+    assert retrieval_metrics_apply("bm25") is True
+    assert retrieval_metrics_apply("embedding") is True
+    assert retrieval_metrics_apply("full") is False
 
 
 def test_fabricated_urls_flags_a_url_absent_from_the_corpus() -> None:
