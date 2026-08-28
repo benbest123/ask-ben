@@ -6,15 +6,17 @@ tags: [visa, qlik, infrastructure, ownership, debugging]
 For five weeks, Ben independently maintained the Qlik dashboards and Qlik infrastructure through
 the absence of the team senior engineer, a stretch that happened to coincide with a company-wide
 on-premise-to-cloud migration. He worked alongside the operations team to resolve configuration
-and infrastructure issues as they surfaced.
+and infrastructure issues as they arose.
 
-Two technical problems from that period are worth the detail. The first was load-completion
-detection for third-party dashboards that exposed no official data-ready API: there was no
-supported way to ask whether a dashboard had finished loading, so the question became how to know
-something reliably without the system telling you. The second was a data race condition in the
-async provisioning flow, which he debugged and fixed.
+Two pieces of engineering came out of that period. The first was a reliable load-completion
+detection mechanism for third-party dashboards that exposed no official data-ready API, so there
+was no supported way to ask whether a dashboard had finished loading. The second was a data race
+condition in the async provisioning flow, which he debugged and fixed after an initial attempt
+using polling turned out to be the wrong shape of solution.
 
-The second is the better story because the first attempt was wrong. He started with polling,
-which worked until it did not: polling answers whether something is ready now, and a race needs
-to know whether it was ready before some other thing happened. He iterated to a timestamp-based
-heuristic, which addressed the ordering rather than the timing.
+The circumstances are the part worth noting as much as the code. Sole ownership of a system
+during a migration means every problem arrives without anyone more senior to escalate it to, and
+the migration itself was generating most of them.
+
+The race condition has its own entry in this corpus, because the first fix being wrong is the
+useful part.

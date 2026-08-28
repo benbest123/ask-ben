@@ -3,7 +3,8 @@ id: availability-and-contact
 title: How to get in touch with Ben
 tags: [meta, contact, availability]
 ---
-Ben is available for work and is based in London, with full right to work in the UK.
+Ben is available for work and is based in London. He holds a Youth Mobility Visa valid until June
+2029, so he can work in the UK without sponsorship for that period.
 
 The best routes to him are his LinkedIn profile at linkedin.com/in/benjamin-s-best and his GitHub
 at github.com/benbest123. His email address is on the Contact window of his site at benbest.uk.

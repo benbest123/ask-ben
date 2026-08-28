@@ -9,7 +9,7 @@ that nothing lands in a public, world-readable corpus that should not be there.
 from ask_ben.chunks import load_corpus
 
 EXPECTED_IDS = {
-    # Facts (12)
+    # Facts (12) -- what Ben did
     "profile-summary",
     "role-visa",
     "role-visa-billing-pipeline",
@@ -22,19 +22,17 @@ EXPECTED_IDS = {
     "certifications",
     "skills-languages-data",
     "skills-cloud-bi",
-    # Projects (6)
+    # Projects (5)
     "project-snip",
-    "project-thelook",
     "project-epl-tracker",
     "project-rym-hide-ratings",
     "project-personal-site",
     "project-ask-ben",
-    # Decisions (10)
-    "thelook-bigquery-over-snowflake",
-    "thelook-star-schema",
-    "thelook-degenerate-dimension",
-    "thelook-margin-approximation",
-    "thelook-tests-at-staging",
+    # Decisions (9) -- why he did it that way, each with its rejected alternative
+    "visa-isolation-in-iam-not-code",
+    "visa-polling-to-timestamp",
+    "visa-csp-not-widened",
+    "visa-reconciling-a-black-box",
     "snip-no-orm",
     "personal-site-window-manager",
     "askben-no-vector-db",
@@ -86,3 +84,28 @@ def test_corpus_holds_no_contact_details_worth_scraping() -> None:
         lowered = chunk.text.lower()
         for term in banned:
             assert term not in lowered, f"{chunk.id} mentions '{term}'"
+
+
+def test_thelook_is_not_a_corpus_topic() -> None:
+    """theLook was a dbt tutorial, not a project, and the corpus said otherwise.
+
+    It had six chunks including five decision chunks, which claimed more for it
+    than it earns. It survives only as a line in skills-languages-data. This
+    test exists so the material does not drift back in.
+    """
+    for chunk in load_corpus():
+        if chunk.id == "skills-languages-data":
+            continue
+        assert "thelook" not in chunk.text.lower(), f"{chunk.id} mentions theLook"
+
+
+def test_no_chunk_overstates_the_right_to_work() -> None:
+    """Ben is on a Youth Mobility Visa until June 2029, not open-ended leave.
+
+    The first corpus draft said "full right to work in the UK" in three places.
+    That is the kind of error a grounded system will repeat confidently and
+    without hedging, because it is faithfully reporting what it was given -- so
+    it has to be caught in the corpus rather than in the prompt.
+    """
+    for chunk in load_corpus():
+        assert "full right to work" not in chunk.text.lower(), f"{chunk.id} overstates work rights"
