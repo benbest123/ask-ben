@@ -41,8 +41,9 @@ class Chunk:
         """What gets embedded, indexed and shown to the model.
 
         The title is included because it carries retrieval signal the body often
-        does not -- "Why theLook uses a layered star schema" contains words a
-        question is likely to use, while the prose beneath it may not.
+        does not -- "Why partner isolation lived in IAM, not application code"
+        carries words a question is likely to use, while the prose beneath such
+        a title often does not.
         """
         return f"{self.title}\n\n{self.body}"
 
