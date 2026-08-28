@@ -1,7 +1,7 @@
 # ask-ben — design
 
-**Date:** 2026-08-25
-**Status:** approved, pending implementation
+**Date:** 2026-08-25 (revised 2026-08-28)
+**Status:** approved; implementation started 2026-08-28
 
 ## Purpose
 
@@ -40,6 +40,8 @@ the crossover point at which that stops being true.
 
 - A vector database. 30 chunks is a numpy dot product.
 - Token streaming (SSE). Answers are 2–4 sentences; the complexity is not repaid.
+  Re-affirmed 2026-08-28 against the reference project, which does stream. See
+  "Measured against the reference project".
 - A hybrid retriever, unless the evaluation shows it earns its place.
 - Ingesting arbitrary documents. See "Corpus and chunking" for why this is a deliberate limit.
 - Conversation memory. Each question is independent.
@@ -181,6 +183,18 @@ ingestion service, no scheduled job.
 Rebuilding is deterministic, so **CI rebuilds the index and fails if it differs from what is
 committed.** This closes the standard RAG failure mode where corpus and index quietly drift.
 
+**Question normalisation.** Visitors write in the second person — "What's *your* AWS
+experience?" — but the corpus is written in the third person and never contains the word
+"you". A regex rewrite maps second-person pronouns to "Ben" before the question reaches any
+retriever.
+
+This is borrowed, with attribution, from the reference project (`njranum/ama-rag`,
+`query/normalise.py`), which measured the un-rewritten form scoring 0.10–0.23 lower in
+cosine similarity and false-refusing at the relevance gate. It is roughly ten lines and it
+fixes a failure that would otherwise be invisible: the system would simply seem unhelpful
+on the most natural phrasing a visitor could use. Both the raw and the normalised forms are
+carried in the golden set, so the fix is measured rather than assumed.
+
 **Relevance gate.** If the top score falls below a threshold, return a scripted "I don't
 have anything on that" and never make the API call. Cheaper, faster, and it makes
 off-topic refusal a property of the system rather than something the prompt is trusted to
@@ -205,17 +219,29 @@ is comfortable for `numpy` and `rank_bm25`.
   instances do not share memory, so an in-process rate limiter is theatre. Upstash Redis is
   the upgrade path if it is ever needed.
 
-**Model choice.** Default `claude-opus-5`. Because the evaluation harness and golden set
-exist anyway, model tier becomes a third swept axis at near-zero marginal cost:
+**Model choice.** Two models, chosen for opposite reasons.
 
-| Model | Input / Output per MTok |
-| --- | --- |
-| Claude Opus 5 | $5 / $25 |
-| Claude Sonnet 5 | $2 / $10 |
-| Claude Haiku 4.5 | $1 / $5 |
+| Role | Model | Input / Output per MTok | Why |
+| --- | --- | --- | --- |
+| Serving | Claude Haiku 4.5 | $1 / $5 | Cheapest tier that clears the eval bar |
+| Judging | Claude Opus 5 | $5 / $25 | Judge quality is the thing being trusted; volume is ~30 calls |
 
-Run the winning prompt and retriever across all three, publish quality against cost, serve
-whichever wins on quality-per-penny.
+**Serving runs on `claude-haiku-4-5-20251001`.** Once retrieval has done its job, generation
+is grounded summarisation of three or four short passages into two or three sentences — the
+difficulty in this system lives in retrieval, not in reasoning. Paying Opus rates per visitor
+question for that would be indefensible, and on a public endpoint it is also the cost that
+scales with traffic.
+
+**Judging runs on `claude-opus-5`**, and the asymmetry is the point: the judge's verdicts are
+the evidence for every quality claim in the README, so it is the one place where paying for
+the strongest model is justified. It runs perhaps thirty times per evaluation, on manual
+dispatch. A cheap judge scoring a cheap generator would be a closed loop with no external
+check on it — which is also why the judge is validated against human labels (see Evaluation).
+
+Because the harness and golden set exist anyway, model tier is a swept axis at near-zero
+marginal cost. The sweep is what turns "I used Haiku" into "Haiku scored within N points of
+Opus at a fifth of the input cost, so I shipped Haiku" — and if the sweep says otherwise, the
+default changes and the README says why.
 
 **Frontend.** A new window in the existing `personal-site` registry —
 `src/apps/AskWindow.tsx`, registered in `src/windows/registry.ts` beside CV, Projects and
@@ -301,6 +327,43 @@ ask-ben/
 └── README.md
 ```
 
+## Measured against the reference project
+
+`github.com/njranum/ama-rag` is a working system that does the same job, so it is the
+honest yardstick — and the comparison below was made by reading the source on 2026-08-28,
+not from a description of it.
+
+It is the larger build: 84 files, a Notion-sourced corpus, Pinecone, scheduled ingestion on
+Lambda and EventBridge, an always-warm Lightsail VPS behind Cloudflare, SSE streaming, and a
+Next.js widget, across four layered design documents. This project does not try to match
+that and would lose if it did.
+
+**It does have an evaluation, and an earlier draft of this spec was wrong to say it did
+not.** `query/eval_set.py` holds a labelled should-answer / should-refuse set, and
+`query/calibrate.py` sets the relevance-gate threshold empirically at the bottom of the
+should-answer range, reporting whether a clean gap exists. That is a genuine, well-reasoned
+piece of measurement, and this project adopts the same idea for its own gate.
+
+The distinction is narrower than "evaluation versus none", and stating it precisely matters
+more than stating it favourably:
+
+| Question | ama-rag | ask-ben |
+| --- | --- | --- |
+| When should the system refuse? | Calibrated threshold | Same idea, adopted |
+| Did retrieval return the right chunk? | Not measured | recall@k and MRR against `must_cite` |
+| Is the answer grounded in what was retrieved? | Not measured | LLM judge, validated against human labels |
+| Is retrieval better than no retrieval? | Not asked | Full-context control arm |
+| What does an answer cost? | Not measured | Token usage and cache hits recorded per call |
+
+So ama-rag's evaluation answers *"when should we decline?"*. This one also answers
+*"is retrieval earning its place, and are the answers actually grounded?"* — and the second
+question is the one the job description's "some form of evaluation" is really asking about.
+
+**Where it is deliberately behind.** No streaming, no scheduled ingestion, no vector
+database, a hand-authored corpus rather than a synced one. Each of those is a line in
+"Decisions to be able to defend" rather than a gap, but they are gaps if the measurement
+does not land — which is the risk this project is taking.
+
 ## Division of labour
 
 Speed is the binding constraint, so **Claude implements by default.** Day 1 is the
@@ -384,5 +447,9 @@ valve if that turns out to have bought speed at the cost of the thing the projec
 5. Voyage over local embeddings — driven by the serverless bundle limit.
 6. Two metric tiers, split on cost — deterministic checks gate PRs, paid ones do not.
 7. The judge is validated against human labels before its scores are believed.
-8. Model tier chosen on measured quality-per-penny, not by reputation.
-9. No streaming — a deliberate omission, not an oversight.
+8. Haiku 4.5 serves and Opus 5 judges — the cheap model does the easy half, the expensive
+   model does the half whose output is treated as evidence.
+9. Model tier confirmed on measured quality-per-penny, not by reputation.
+10. No streaming — a deliberate omission, measured against a reference project that has it.
+11. Questions are normalised to the third person before retrieval — a borrowed fix, with
+    attribution, for a failure the reference project measured.
