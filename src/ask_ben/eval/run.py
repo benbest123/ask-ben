@@ -23,6 +23,7 @@ from ask_ben.config import (
     DEFAULT_K,
     DEFAULT_PROMPT_VERSION,
     EVALS_DIR,
+    GATE_THRESHOLDS,
     JUDGE_MODEL,
 )
 from ask_ben.eval.judge import judge_agreement, judge_answer, load_human_labels
@@ -195,6 +196,121 @@ def evaluate(
     return RunResult(config=config, rows=rows, summary=summary)
 
 
+def evaluate_retrieval(
+    questions: list[GoldenQuestion],
+    *,
+    retriever: Retriever,
+    k: int = DEFAULT_K,
+) -> RunResult:
+    """Score retrieval alone, with no generation and no Anthropic spend.
+
+    Answers cost money; finding the right chunk does not. BM25 and the
+    full-context arm make no network call at all, and the dense arm costs about
+    twenty tokens of Voyage per question -- roughly $0.0000004.
+
+    This answers "did the retriever find the chunk the answer needs, and how far
+    up did it rank it", which is most of the retriever comparison. What it cannot
+    answer is whether the resulting answers differ in quality, because that needs
+    the generator and the judge.
+    """
+    ranked = retrieval_metrics_apply(retriever.name)
+    threshold = GATE_THRESHOLDS.get(retriever.name, 0.0)
+    rows: list[dict[str, Any]] = []
+
+    for question in questions:
+        hits = retriever.search(question.question, k)
+        retrieved = [h.chunk.id for h in hits]
+        top_score = hits[0].score if hits else float("-inf")
+        gated = top_score < threshold
+
+        rows.append(
+            {
+                "id": question.id,
+                "category": question.category,
+                "question": question.question,
+                "expected": question.expected,
+                "must_cite": list(question.must_cite),
+                "retrieved_ids": retrieved[:k],
+                "top_score": top_score,
+                "gated": gated,
+                # With no generation, the gate is the only decline route there
+                # is -- so this measures the gate alone rather than the system.
+                "gate_correct": (question.expected == "refuse") == gated,
+                "recall_at_k": recall_at_k(retrieved, question.must_cite, k) if ranked else None,
+                "reciprocal_rank": (
+                    reciprocal_rank(retrieved, question.must_cite) if ranked else None
+                ),
+            }
+        )
+
+    ranked_rows = [r for r in rows if r["recall_at_k"] is not None]
+    answerable = [r for r in rows if r["expected"] == "answer"]
+    refusable = [r for r in rows if r["expected"] == "refuse"]
+    summary = {
+        "n": len(rows),
+        "gate_accuracy": statistics.fmean(r["gate_correct"] for r in rows),
+        "false_refusals": sum(1 for r in answerable if r["gated"]),
+        "missed_refusals": sum(1 for r in refusable if not r["gated"]),
+        "mean_recall_at_k": (
+            statistics.fmean(r["recall_at_k"] for r in ranked_rows) if ranked_rows else None
+        ),
+        "mean_reciprocal_rank": (
+            statistics.fmean(r["reciprocal_rank"] for r in ranked_rows) if ranked_rows else None
+        ),
+        "answer_cost_usd": 0.0,
+        "judge_cost_usd": 0.0,
+        "total_cost_usd": 0.0,
+    }
+
+    # The gap between the worst legitimate score and the best off-topic one.
+    # Positive means some threshold separates them. Negative means the
+    # distributions overlap and no single threshold can, which is a fact about
+    # the retriever rather than a tuning problem -- see ama-rag's calibrate.py,
+    # which sets the threshold just below the lowest should-answer score and
+    # therefore assumes this gap is positive.
+    lowest = min((float(r["top_score"]) for r in answerable), default=None)
+    highest = max((float(r["top_score"]) for r in refusable), default=None)
+    summary["lowest_answerable_score"] = lowest
+    summary["highest_refusable_score"] = highest
+    summary["separation_gap"] = (
+        round(lowest - highest, 4) if lowest is not None and highest is not None else None
+    )
+
+    config = {"retriever": retriever.name, "prompt": "n/a", "model": "none", "k": k}
+    return RunResult(config=config, rows=rows, summary=summary)
+
+
+def render_retrieval_report(result: RunResult) -> str:
+    c, s = result.config, result.summary
+    gap = s.get("separation_gap")
+    verdict = (
+        "a threshold exists that separates them"
+        if gap is not None and gap > 0
+        else "**the distributions overlap -- no single threshold separates them**"
+    )
+    lines = [
+        f"# Retrieval-only eval -- {c['retriever']} (k={c['k']})",
+        "",
+        "No generation, no judging, no Anthropic spend.",
+        "",
+        "| Metric | Value |",
+        "| --- | --- |",
+        f"| Questions | {s['n']} |",
+        f"| Recall@k | {_fmt(s['mean_recall_at_k'])} |",
+        f"| MRR | {_fmt(s['mean_reciprocal_rank'])} |",
+        f"| Gate accuracy | {_fmt(s['gate_accuracy'])} |",
+        f"| False refusals (real questions gated) | {s['false_refusals']} |",
+        f"| Missed refusals (off-topic let through) | {s['missed_refusals']} |",
+        f"| Lowest answerable score | {_fmt(s['lowest_answerable_score'])} |",
+        f"| Highest off-topic score | {_fmt(s['highest_refusable_score'])} |",
+        f"| Separation gap | {_fmt(gap)} |",
+        "",
+        f"Gap interpretation: {verdict}.",
+        "",
+    ]
+    return "\n".join(lines) + "\n"
+
+
 def _fmt(value: Any) -> str:
     if value is None:
         return "--"
@@ -295,14 +411,37 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--judge-model", default=JUDGE_MODEL)
     parser.add_argument("--k", type=int, default=DEFAULT_K)
     parser.add_argument("--check-judge", metavar="RESULT_JSON")
+    parser.add_argument(
+        "--retrieval-only",
+        action="store_true",
+        help="Score retrieval with no generation and no Anthropic spend.",
+    )
     args = parser.parse_args(argv)
 
     if args.check_judge:
         return _check_judge(args.check_judge)
 
-    import anthropic
-
     from ask_ben.retrieve import build_retriever
+
+    if args.retrieval_only:
+        result = evaluate_retrieval(
+            load_golden(), retriever=build_retriever(args.retriever), k=args.k
+        )
+        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        stem = f"retrieval-{args.retriever}-k{args.k}"
+        (RESULTS_DIR / f"{stem}.json").write_text(
+            json.dumps(
+                {"config": result.config, "rows": result.rows, "summary": result.summary}, indent=2
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        report = render_retrieval_report(result)
+        (RESULTS_DIR / f"{stem}.md").write_text(report, encoding="utf-8")
+        print(report)
+        return 0
+
+    import anthropic
 
     client = anthropic.Anthropic()
     result = evaluate(

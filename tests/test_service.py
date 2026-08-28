@@ -12,7 +12,10 @@ CHUNK = Chunk(id="role-visa", title="Visa", tags=(), body="Ben was an Associate 
 
 
 class StubRetriever:
-    name = "bm25"
+    # "embedding" rather than "bm25": BM25's gate is disabled in config (its
+    # score distributions invert, so no threshold separates them), so a stub
+    # named bm25 can never demonstrate gating.
+    name = "embedding"
 
     def __init__(self, score: float = 9.0) -> None:
         self._score = score
@@ -67,12 +70,12 @@ def test_ask_returns_answer_sources_and_meta() -> None:
     assert "Associate Data Engineer" in body["answer"]
     assert body["sources"] == ["role-visa"]
     assert body["refused"] is False
-    assert body["meta"]["retriever"] == "bm25"
+    assert body["meta"]["retriever"] == "embedding"
 
 
 def test_ask_surfaces_a_gated_refusal_as_a_normal_200() -> None:
     """A refusal is an answer, not an error. The widget renders it the same way."""
-    response = client(score=0.1).post("/ask", json={"question": "Capital of Peru?"})
+    response = client(score=0.01).post("/ask", json={"question": "Capital of Peru?"})
     assert response.status_code == 200
     body = response.json()
     assert body["refused"] is True
@@ -80,7 +83,7 @@ def test_ask_surfaces_a_gated_refusal_as_a_normal_200() -> None:
 
 
 def test_a_gated_question_never_reaches_the_api() -> None:
-    deps = Deps(retriever=StubRetriever(0.1), client=StubClient())
+    deps = Deps(retriever=StubRetriever(0.01), client=StubClient())
     TestClient(create_app(deps)).post("/ask", json={"question": "Capital of Peru?"})
     assert deps.client.messages.calls == 0
 

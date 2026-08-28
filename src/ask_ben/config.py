@@ -38,7 +38,11 @@ JUDGE_MODEL = "claude-opus-5"
 SUBJECT_NAME = "Ben"
 
 DEFAULT_PROMPT_VERSION = "v2"
-DEFAULT_RETRIEVER = "bm25"
+# Switched from bm25 to embedding on 2026-08-28, on the retrieval-only sweep
+# (evals/results/retrieval-*.json). Dense wins on every retrieval measure:
+# recall@4 0.989 vs 0.900, MRR 0.983 vs 0.789. The MRR gap is the telling one --
+# BM25 frequently finds the right chunk but buries it, so k=4 was carrying it.
+DEFAULT_RETRIEVER = "embedding"
 DEFAULT_K = 4
 
 MAX_QUESTION_CHARS = 500
@@ -52,14 +56,35 @@ MAX_QUESTION_CHARS = 500
 # answer while capping the tail.
 MAX_ANSWER_TOKENS = 300
 
-# Provisional. Tuned against evals/golden.yaml in Task 11 and updated there.
-# BM25 scores are unbounded; cosine similarity is bounded to [-1, 1]. The two
-# are therefore not comparable, which is why thresholds are keyed by retriever
-# name rather than shared. The full-context arm returns every chunk by
-# definition, so gating it would be meaningless.
+# Tuned 2026-08-28 against the golden set. Run:
+#   python -m ask_ben.eval.run --retrieval-only --retriever <arm>
+#
+# BM25 scores are unbounded; cosine similarity is bounded to [-1, 1]. The two are
+# not comparable, which is why these are keyed by retriever rather than shared.
+#
+# THE TUNING RATIONALE, because the two errors are not equally bad:
+#   - A false refusal (gating a real question) is a visitor being told "I don't
+#     know" about something the corpus covers. It is the worst outcome here.
+#   - A missed refusal (an off-topic question reaching the model) costs $0.0021
+#     and is then caught by the prompt-side decline, which the eval shows works.
+# So the gate is tuned to eliminate false refusals and the prompt is the backstop
+# -- the same two-path design ama-rag uses, arrived at from the numbers.
 GATE_THRESHOLDS: dict[str, float] = {
-    "bm25": 4.0,
-    "embedding": 0.45,
+    # Set just below the lowest-scoring legitimate question (0.275,
+    # "Why did he not just filter by partner in the query?"). Off-topic questions
+    # in the 0.275-0.427 band still get through; the prompt declines them.
+    "embedding": 0.27,
+    # Disabled deliberately, not left unset. BM25's distributions do not merely
+    # overlap, they invert: the highest-scoring question that should be refused
+    # scored 16.200 ("Who were his managers at Visa and can I have their contact
+    # details?") while the lowest legitimate one scored 2.891 ("What did he
+    # study?"). BM25 rewards length and vocabulary overlap, both of which a
+    # hostile visitor controls -- so a long question stuffed with corpus words
+    # outscores a short honest one, and no threshold can separate them. A gate
+    # that an attacker can raise their own score against is worse than none,
+    # because it looks like a control.
+    "bm25": float("-inf"),
+    # The control arm returns every chunk by definition; there is nothing to gate.
     "full": float("-inf"),
 }
 
